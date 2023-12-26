@@ -112,6 +112,9 @@ buttonManager.on("buttonSingleOrDoubleClickOrHold", function (obj) {
   mqtt.publish(buttonTopic + "/click_event", JSON.stringify(eventPayload), {
     retain: false,
   });
+    mqtt.publish(buttonTopic + "/click_event", clickType, { 
+    retain: false,
+  });
 
   if (!buttons[button.bdaddr] || buttons[button.bdaddr].name !== button.name) {
     registerButton(button);
