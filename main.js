@@ -95,16 +95,16 @@ buttonManager.on("buttonSingleOrDoubleClickOrHold", function (obj) {
   var clickType = obj.isSingleClick
     ? "click"
     : obj.isDoubleClick
-    ? "double_click"
-    : "hold";
+      ? "double_click"
+      : "hold";
   buttonHoldStatus[button.bdaddr] = clickType === "hold";
 
   // Log for debugging
   console.log(
     "Button " +
-      button.serialNumber +
-      " hold status: " +
-      buttonHoldStatus[button.bdaddr]
+    button.serialNumber +
+    " hold status: " +
+    buttonHoldStatus[button.bdaddr]
   );
 
   var buttonTopic = flicTopic + "/" + button.serialNumber;
