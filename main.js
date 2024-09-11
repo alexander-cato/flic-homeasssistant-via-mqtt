@@ -30,10 +30,76 @@ var mqttCredentials = { username: "", password: "" };
 
 // Begin code -- no need to edit below this line
 var mqtt = require("./mqtt").create(server, mqttCredentials);
+
 var buttonManager = require("buttons");
 var buttons = {}; // Store Button objects
 var buttonHoldStatus = {}; // Track if a button was held
 var buttonConnectedStatus = {}; // Track if a button is connected
+
+var hubInfo = require("hubinfo");
+var network = require("network");
+
+// Function to get network information
+function getNetworkInfo() {
+  var networkState = network.getState();
+  return {
+    wifi: {
+      connected: networkState.dhcp.wifi.connected,
+      ip: networkState.dhcp.wifi.ip,
+      mac: networkState.dhcp.wifi.mac
+    },
+    ethernet: {
+      connected: networkState.dhcp.ethernet.connected,
+      ip: networkState.dhcp.ethernet.ip,
+      mac: networkState.dhcp.ethernet.mac
+    }
+  };
+}
+
+// Function to register the hub
+function registerHub() {
+  var hubTopic =
+    homeAssistantTopic + "/device_automation/" + hubInfo.serialNumber;
+  var networkInfo = getNetworkInfo();
+
+  var obj = {
+    device: {
+      name: "Flic Hub",
+      identifiers: [hubInfo.serialNumber],
+      model: "Flic Hub LR",
+      manufacturer: "Flic",
+      serial_number: hubInfo.serialNumber,
+      sw_version: "v" + hubInfo.firmwareVersion,
+      connections: [
+        ["mac", networkInfo.wifi.mac],
+        ["mac", networkInfo.ethernet.mac],
+      ],
+      configuration_url: "https://hubsdk.flic.io/",
+    },
+    name: "Flic Hub",
+    unique_id: "FlicHub_" + hubInfo.serialNumber,
+    topic: flicTopic + "/hub",
+    type: "device_automation",
+    subtype: "hub",
+    automation_type: "trigger",
+  };
+
+  var payload = JSON.stringify(obj, null, 4);
+  mqtt.publish(hubTopic + "/config", payload, { retain: true });
+
+  // Publish network information
+  mqtt.publish(hubTopic + "/network", JSON.stringify(networkInfo), { retain: true });
+
+  console.log("Flic Hub registered");
+}
+
+// Function to update hub information
+function updateHubInfo() {
+  var networkInfo = getNetworkInfo();
+  var hubTopic =
+    homeAssistantTopic + "/device_automation/" + hubInfo.serialNumber;
+  mqtt.publish(hubTopic + "/network", JSON.stringify(networkInfo), { retain: true });
+}
 
 // Generic event handler for button actions
 function handleButtonEvent(eventType, obj) {
@@ -173,12 +239,13 @@ function registerButton(button) {
     device: {
       name: button.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, ""),
       identifiers: [button.serialNumber, button.uuid],
+      model: "Flic Button " + button.flicVersion + " " + button.color,
       manufacturer: "Flic",
-      model: button.serialNumber,
-      hw_version: "Flic " + button.flicVersion + " " + button.color,
+      serial_number: button.serialNumber,
+      hw_version: "Flic Button " + button.flicVersion + " " + button.color,
       sw_version: "v" + button.firmwareVersion,
       connections: [["bluetooth", button.bdaddr]],
-      configuration_url: "https://hubsdk.flic.io/",
+      via_device: hubInfo.serialNumber,
     },
     name: "State",
     friendly_name: "State",
@@ -284,7 +351,11 @@ function registerAllButtons() {
 mqtt.on("connected", function () {
   console.log("MQTT connected successfully");
   console.log("MQTT server:", server);
+  registerHub();
   registerAllButtons();
+
+  // Set up periodic update of hub information
+  setInterval(updateHubInfo, 60000); // Update every minute
 });
 
 mqtt.on("disconnected", function () {
