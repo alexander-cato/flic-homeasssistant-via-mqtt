@@ -95,16 +95,16 @@ buttonManager.on("buttonSingleOrDoubleClickOrHold", function (obj) {
   var clickType = obj.isSingleClick
     ? "click"
     : obj.isDoubleClick
-      ? "double_click"
-      : "hold";
+    ? "double_click"
+    : "hold";
   buttonHoldStatus[button.bdaddr] = clickType === "hold";
 
   // Log for debugging
   console.log(
     "Button " +
-    button.serialNumber +
-    " hold status: " +
-    buttonHoldStatus[button.bdaddr]
+      button.serialNumber +
+      " hold status: " +
+      buttonHoldStatus[button.bdaddr]
   );
 
   var buttonTopic = flicTopic + "/" + button.serialNumber;
@@ -112,7 +112,7 @@ buttonManager.on("buttonSingleOrDoubleClickOrHold", function (obj) {
   mqtt.publish(buttonTopic + "/click_event", JSON.stringify(eventPayload), {
     retain: false,
   });
-    mqtt.publish(buttonTopic + "/click_event", clickType, { 
+  mqtt.publish(buttonTopic + "/click_event", clickType, {
     retain: false,
   });
 
@@ -281,15 +281,24 @@ function registerAllButtons() {
 }
 
 // MQTT event handlers
-mqtt.on("connected", registerAllButtons);
+mqtt.on("connected", function () {
+  console.log("MQTT connected successfully");
+  console.log("MQTT server:", server);
+  registerAllButtons();
+});
+
 mqtt.on("disconnected", function () {
+  console.log("MQTT disconnected, attempting to reconnect...");
   mqtt.connect();
 });
-mqtt.on("error", function () {
+
+mqtt.on("error", function (error) {
+  console.error("MQTT error:", error);
   setTimeout(function () {
-    throw new Error("Crashed");
+    throw new Error("Crashed due to MQTT error");
   }, 1000);
 });
 
 // Connect to MQTT server
 mqtt.connect();
+console.log("Attempting to connect to MQTT broker...");
